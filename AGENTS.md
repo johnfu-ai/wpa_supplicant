@@ -56,7 +56,9 @@ wpa_supplicant-8021X-2020/
     │   ├── ieee802_1x_kay_i.h    # MKA internal types
     │   ├── ieee802_1x_cp.c/h     # Controlled Port state machine
     │   ├── ieee802_1x_key.c/h    # Key derivation
-    │   └── ieee802_1x_secy_ops.c/h  # SecY hardware abstraction
+    │   ├── ieee802_1x_secy_ops.c/h  # SecY hardware abstraction
+    │   ├── ieee802_1x_logon.c    # Logon Process SM — Clause 12 (Wave 1 in progress)
+    │   └── ieee802_1x_logon.h    # Logon Process public API + ieee802_1x_logon_ctx DI struct
     ├── eapol_auth/               # Authenticator EAPOL state machine
     ├── crypto/                   # Cryptographic primitives
     ├── tls/                      # TLS (internal or OpenSSL wrapper)
@@ -70,6 +72,21 @@ wpa_supplicant-8021X-2020/
         ├── common.h              # wpa_printf, wpa_hexdump, BIT(), etc.
         ├── list.h                # Doubly-linked list (dl_list_*)
         └── wpa_debug.h           # Debug logging levels
+```
+
+### Unit Test Directory (new)
+
+```
+tests/
+└── pae/
+    ├── Makefile                  # make test — builds and runs all PAE unit tests
+    ├── README.md                 # Test directory docs
+    └── test_ieee802_1x_logon.c   # TC-LOGON-INIT-001..004, TC-LOGON-DEINIT-001
+```
+
+Build and run PAE unit tests without hardware:
+```bash
+cd tests/pae && make test
 ```
 
 ---
@@ -129,16 +146,16 @@ endif
 | Authenticator PAE | Clause 8.4 | `eapol_auth/` | Partial |
 | MKA (KaY) | Clause 9 | `pae/ieee802_1x_kay.c` | Partial (2010 base) |
 | Controlled Port (CP) | Clause 10 | `pae/ieee802_1x_cp.c` | Partial |
-| Logon Process | Clause 12 | **Not implemented** | MISSING |
-| ANCP | Clause 12 | **Not implemented** | MISSING |
+| Logon Process | Clause 12 | `pae/ieee802_1x_logon.c` | **Wave 1 in progress** — init/deinit done (5 tests green) |
+| ANCP | Clause 12 | **Not implemented** | MISSING — Wave 3 |
 
 ### Critical Missing Features (802.1X-2020 gaps)
 
-1. **Logon Process (Clause 12)** — NID-aware network selection before EAPOL
-2. **NID Group management (Clause 12.5)** — per-NID configuration
-3. **ANCP (Announced Network Connectivity Protocol)** — L2 network announcement
-4. **EAP-TEAP completion** — required method per 802.1X-2020
-5. **MKA 2020 updates** — review against Clause 9 changes from 2010→2020
+1. **Logon Process (Clause 12)** — `pae/ieee802_1x_logon.c` started; init/deinit complete, sm_step/state transitions next
+2. **NID Group management (Clause 12.5)** — per-NID configuration — Wave 3
+3. **ANCP (Announced Network Connectivity Protocol)** — L2 network announcement — Wave 3
+4. **EAP-TEAP completion** — required method per 802.1X-2020 — Wave 2
+5. **MKA 2020 updates** — review against Clause 9 changes from 2010→2020 — Wave 1
 
 ### YANG Data Model Reference
 
@@ -194,7 +211,8 @@ void ieee802_1x_xxx_event_name(struct ieee802_1x_xxx_sm *sm);
 ```c
 /**
  * ieee802_1x_logon_init - Initialize the Logon Process state machine
- * @ctx: KaY context structure
+ * @ctx: Dependency-injection context (ieee802_1x_logon_ctx) with all
+ *       inter-SM callbacks populated. Must not be NULL.
  *
  * Initializes the IEEE 802.1X-2020 Logon Process per Clause 12.
  * Returns: Pointer to state machine, or NULL on failure
@@ -203,7 +221,7 @@ void ieee802_1x_xxx_event_name(struct ieee802_1x_xxx_sm *sm);
  * This implementation is based on understanding of the specification.
  * No copyrighted content from the standard is reproduced.
  */
-struct ieee802_1x_logon *ieee802_1x_logon_init(struct ieee802_1x_kay *kay);
+struct ieee802_1x_logon *ieee802_1x_logon_init(struct ieee802_1x_logon_ctx *ctx);
 ```
 
 ### Comment Style for Standard References
@@ -248,7 +266,8 @@ static struct ieee802_1x_kay *global_kay;  /* WRONG — pass as parameter */
 Use existing test infrastructure:
 - `wpa_supplicant/eapol_test` — EAPOL functional testing
 - `src/utils/` unit tests — utility function tests
-- Mock using function pointer injection (see `ieee802_1x_secy_ops.h` pattern)
+- `tests/pae/` — standalone PAE unit tests (no hardware, no RADIUS needed); run with `make test`
+- Mock using function pointer injection (see `ieee802_1x_secy_ops.h` pattern and `ieee802_1x_logon_ctx`)
 
 ```c
 /* Mock injection pattern — existing wpa_supplicant style */
@@ -316,12 +335,15 @@ cd wpa_supplicant && make -j$(nproc)
 # Check for compile errors only (fast)
 make -j$(nproc) 2>&1 | grep -E "error:|warning:"
 
+# Run PAE unit tests (no hardware needed)
+cd tests/pae && make test
+
 # Run EAPOL test
-./eapol_test -c test.conf -a 127.0.0.1 -p 1812 -s testing123
+cd wpa_supplicant && ./eapol_test -c test.conf -a 127.0.0.1 -p 1812 -s testing123
 
 # Check what 802.1X features are enabled
 grep -E "^CONFIG_(IEEE8021X|MACSEC|MOKO|EAP)" .config
 
-# Find all MKA/KaY related code
-grep -rn "ieee802_1x_kay\|ieee802_1x_cp\|ieee802_1x_logon" src/
+# Find all Logon Process / MKA / KaY related code
+grep -rn "ieee802_1x_logon\|ieee802_1x_kay\|ieee802_1x_cp" src/ tests/
 ```
