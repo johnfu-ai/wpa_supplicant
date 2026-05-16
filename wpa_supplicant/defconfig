@@ -188,6 +188,10 @@ CONFIG_EAP_IKEV2=y
 # MACsec
 CONFIG_MACSEC=y
 
+# IEEE 802.1X-2020 Logon Process (Clause 12)
+# Requires CONFIG_MACSEC=y
+#CONFIG_IEEE8021X_2020_LOGON=y
+
 # PKCS#12 (PFX) support (used to read private key and certificate file from
 # a file that usually has extension .p12 or .pfx)
 CONFIG_PKCS12=y

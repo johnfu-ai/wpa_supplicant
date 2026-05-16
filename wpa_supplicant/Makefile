@@ -971,6 +971,11 @@ OBJS += ../src/ap/wpa_auth_kay.o
 endif
 endif
 
+ifdef CONFIG_IEEE8021X_2020_LOGON
+CFLAGS += -DCONFIG_IEEE8021X_2020_LOGON
+OBJS += ../src/pae/ieee802_1x_logon.o
+endif
+
 ifdef CONFIG_IEEE8021X_EAPOL
 # IEEE 802.1X/EAPOL state machines (e.g., for RADIUS authentication)
 CFLAGS += -DIEEE8021X_EAPOL
