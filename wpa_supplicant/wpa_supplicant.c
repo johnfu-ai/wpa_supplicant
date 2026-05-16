@@ -47,6 +47,7 @@
 #include "fst/fst.h"
 #include "bssid_ignore.h"
 #include "wpas_glue.h"
+#include "wpas_logon.h"
 #include "wps_supplicant.h"
 #include "ibss_rsn.h"
 #include "sme.h"
@@ -576,6 +577,9 @@ static void wpa_supplicant_cleanup(struct wpa_supplicant *wpa_s)
 	wpa_s->last_con_fail_realm_len = 0;
 
 	wpa_sm_set_eapol(wpa_s->wpa, NULL);
+#ifdef CONFIG_IEEE8021X_2020_LOGON
+	wpas_logon_deinit(wpa_s);
+#endif
 	eapol_sm_deinit(wpa_s->eapol);
 	wpa_s->eapol = NULL;
 
@@ -5227,6 +5231,9 @@ int wpas_set_pkcs11_engine_and_module_path(struct wpa_supplicant *wpa_s,
 #endif /* CONFIG_PKCS11_MODULE_PATH */
 
 	wpa_sm_set_eapol(wpa_s->wpa, NULL);
+#ifdef CONFIG_IEEE8021X_2020_LOGON
+	wpas_logon_deinit(wpa_s);
+#endif
 	eapol_sm_deinit(wpa_s->eapol);
 	wpa_s->eapol = NULL;
 	if (wpa_supplicant_init_eapol(wpa_s)) {

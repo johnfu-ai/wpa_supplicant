@@ -24,6 +24,7 @@
 #include "common/ieee802_11_defs.h"
 #include "common/wpa_ctrl.h"
 #include "wpas_glue.h"
+#include "wpas_logon.h"
 #include "wps_supplicant.h"
 #include "bss.h"
 #include "scan.h"
@@ -1227,6 +1228,15 @@ int wpa_supplicant_init_eapol(struct wpa_supplicant *wpa_s)
 			   "machines.");
 		return -1;
 	}
+#ifdef CONFIG_IEEE8021X_2020_LOGON
+	if (wpas_logon_init(wpa_s) < 0) {
+		wpa_printf(MSG_ERROR, "Failed to initialize Logon Process.");
+		eapol_sm_deinit(wpa_s->eapol);
+		wpa_s->eapol = NULL;
+		os_free(ctx);
+		return -1;
+	}
+#endif /* CONFIG_IEEE8021X_2020_LOGON */
 #endif /* IEEE8021X_EAPOL */
 
 	return 0;
