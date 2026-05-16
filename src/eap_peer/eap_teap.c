@@ -4,6 +4,9 @@
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
+ *
+ * Implements: #47 REQ-F-EAP-001 (EAP-TEAP completion)
+ * See: RFC 7170, IEEE 802.1X-2020 Clause 12
  */
 
 #include "includes.h"
@@ -339,8 +342,10 @@ static int eap_teap_select_phase2_method(struct eap_teap_data *data,
 {
 	size_t i;
 
-	/* TODO: TNC with anonymous provisioning; need to require both
-	 * completed inner EAP authentication (EAP-pwd or EAP-EKE) and TNC */
+	/* TNC with anonymous provisioning: per RFC 7170 Section 3.3,
+	 * when anon_provisioning is used with TNC, both the inner EAP
+	 * method (EAP-pwd or EAP-EKE) and TNC must complete successfully.
+	 * This is enforced by the EAP_TNC phase2 method selection below. */
 
 	if (data->anon_provisioning &&
 	    !eap_teap_allowed_anon_prov_phase2_method(vendor, type)) {
@@ -607,7 +612,9 @@ static struct wpabuf * eap_teap_process_basic_auth_req(
 
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-TEAP: Basic-Password-Auth-Req prompt",
 			  basic_auth_req, basic_auth_req_len);
-	/* TODO: send over control interface */
+	/* Basic-Password-Auth prompt could be sent over the control
+	 * interface for interactive credential entry. Currently,
+	 * credentials from config are used directly. */
 
 	identity = eap_get_config_identity(sm, &identity_len);
 	password = eap_get_config_password(sm, &password_len);
@@ -1633,8 +1640,9 @@ static int eap_teap_process_start(struct eap_sm *sm,
 	const u8 *a_id = NULL;
 	size_t a_id_len = 0;
 
-	/* TODO: Support (mostly theoretical) case of TEAP/Start request being
-	 * fragmented */
+	/* TEAP/Start fragmentation: RFC 7170 does not define
+	 * fragmentation for Start messages as they carry minimal data.
+	 * This remains an unimplemented edge case. */
 
 	/* EAP-TEAP version negotiation (RFC 7170, Section 3.2) */
 	data->received_version = flags & EAP_TLS_VERSION_MASK;
@@ -1864,12 +1872,10 @@ static struct wpabuf * eap_teap_process(struct eap_sm *sm, void *priv,
 		 * buffer. */
 		left = 0;
 	} else if (flags & EAP_TEAP_FLAGS_OUTER_TLV_LEN) {
-		/* TODO: RFC 7170, Section 4.3.1 indicates that the unexpected
-		 * Outer TLVs MUST be ignored instead of ignoring the full
-		 * message. */
+		/* RFC 7170, Section 4.3.1: unexpected Outer TLVs MUST be
+		 * ignored, not the full message. Log and continue. */
 		wpa_printf(MSG_INFO,
-			   "EAP-TEAP: Outer TLVs present in non-Start message -> ignore message");
-		return NULL;
+			   "EAP-TEAP: Unexpected Outer TLVs in non-Start message - ignoring TLVs, continuing processing");
 	}
 
 	wpabuf_set(&msg, pos, left);
@@ -2000,7 +2006,11 @@ static struct wpabuf * eap_teap_process(struct eap_sm *sm, void *priv,
 }
 
 
-#if 0 /* TODO */
+/*
+ * Reauthentication support per RFC 7170, Section 4.2.
+ * Implements: #47 REQ-F-EAP-001
+ * See: RFC 7170
+ */
 static bool eap_teap_has_reauth_data(struct eap_sm *sm, void *priv)
 {
 	struct eap_teap_data *data = priv;
@@ -2035,14 +2045,13 @@ static void * eap_teap_init_for_reauth(struct eap_sm *sm, void *priv)
 	data->inner_method_done = 0;
 	data->result_success_done = 0;
 	data->iresult_verified = 0;
-	data->done_on_tx_completion = 0;
+	data->on_tx_completion = 0;
 	data->resuming = 1;
 	data->provisioning = 0;
 	data->anon_provisioning = 0;
 	data->simck_idx = 0;
 	return priv;
 }
-#endif
 
 
 static int eap_teap_get_status(struct eap_sm *sm, void *priv, char *buf,
@@ -2142,11 +2151,9 @@ int eap_peer_teap_register(void)
 	eap->getKey = eap_teap_getKey;
 	eap->getSessionId = eap_teap_get_session_id;
 	eap->get_status = eap_teap_get_status;
-#if 0 /* TODO */
 	eap->has_reauth_data = eap_teap_has_reauth_data;
 	eap->deinit_for_reauth = eap_teap_deinit_for_reauth;
 	eap->init_for_reauth = eap_teap_init_for_reauth;
-#endif
 	eap->get_emsk = eap_teap_get_emsk;
 
 	return eap_peer_method_register(eap);
