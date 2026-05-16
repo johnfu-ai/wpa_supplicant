@@ -1,2 +1,13 @@
-src/pae/test_ieee802_1x_logon
+# Compiled binaries and test executables
+build/
+*.o
+*.d
+*.so
+*.a
+
+# Test binaries
 tests/pae/test_ieee802_1x_logon
+src/pae/test_ieee802_1x_logon
+
+# Generated config
+wpa_supplicant/.config
