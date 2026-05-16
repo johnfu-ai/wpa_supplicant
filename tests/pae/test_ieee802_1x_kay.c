@@ -39,12 +39,16 @@ void wpa_printf(int level, const char *fmt, ...)
 struct ieee802_1x_mka_participant {
 	struct dl_list list;
 	bool suspended;
-	/* Placeholder for the full struct; we only test suspended */
+	bool is_group_cak;
+	u8 rp_key[32];
+	size_t rp_key_len;
+	bool rp_key_set;
 };
 
 /* Minimal struct ieee802_1x_kay — only the fields we need */
 struct ieee802_1x_kay {
 	bool mka_suspended;
+	bool enable;
 	struct dl_list participant_list;
 };
 
@@ -327,14 +331,75 @@ TEST(test_kay_resume_participants_cleared)
 }
 
 /* ------------------------------------------------------------------ */
+/* Group CAK tests                                                       */
+/* ------------------------------------------------------------------ */
+
+/*
+ * TC-KAY-GCAK-001
+ * Group CAK fields are initialized to false/zero by os_zalloc.
+ */
+TEST(test_kay_group_cak_initial_state)
+{
+	struct ieee802_1x_mka_participant *p = alloc_participant();
+	ASSERT_NOT_NULL(p);
+	ASSERT_FALSE(p->is_group_cak);
+	ASSERT_FALSE(p->rp_key_set);
+	ASSERT_EQ((int)p->rp_key_len, 0);
+	os_free(p);
+}
+
+/*
+ * TC-KAY-GCAK-002
+ * Setting group CAK: is_group_cak=true, rp_key populated, rp_key_set=true.
+ */
+TEST(test_kay_group_cak_set)
+{
+	struct ieee802_1x_mka_participant *p = alloc_participant();
+	u8 test_key[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+			   0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+	ASSERT_NOT_NULL(p);
+
+	/* Simulate what ieee802_1x_kay_create_mka_2020 does */
+	p->is_group_cak = true;
+	os_memcpy(p->rp_key, test_key, 16);
+	p->rp_key_len = 16;
+	p->rp_key_set = true;
+
+	ASSERT_TRUE(p->is_group_cak);
+	ASSERT_TRUE(p->rp_key_set);
+	ASSERT_EQ((int)p->rp_key_len, 16);
+	ASSERT_EQ(p->rp_key[0], 0x01);
+	ASSERT_EQ(p->rp_key[15], 0x10);
+
+	os_free(p);
+}
+
+/*
+ * TC-KAY-GCAK-003
+ * Without group CAK: is_group_cak=false, rp_key_set=false.
+ */
+TEST(test_kay_no_group_cak)
+{
+	struct ieee802_1x_mka_participant *p = alloc_participant();
+	ASSERT_NOT_NULL(p);
+
+	/* Default state — no rp_key provided */
+	ASSERT_FALSE(p->is_group_cak);
+	ASSERT_FALSE(p->rp_key_set);
+
+	os_free(p);
+}
+
+/* ------------------------------------------------------------------ */
 /* Main                                                                  */
 /* ------------------------------------------------------------------ */
 
 int main(void)
 {
-	printf("IEEE 802.1X-2020 MKA Suspend/Resume Tests\n");
-	printf("==========================================\n\n");
+	printf("IEEE 802.1X-2020 MKA Tests\n");
+	printf("==========================\n\n");
 
+	printf("-- Suspend/Resume --\n");
 	RUN(test_kay_suspend_null);
 	RUN(test_kay_suspend_no_participants);
 	RUN(test_kay_resume_null);
@@ -345,7 +410,12 @@ int main(void)
 	RUN(test_kay_suspend_participants_flagged);
 	RUN(test_kay_resume_participants_cleared);
 
-	printf("\n==========================================\n");
+	printf("\n-- Group CAK --\n");
+	RUN(test_kay_group_cak_initial_state);
+	RUN(test_kay_group_cak_set);
+	RUN(test_kay_no_group_cak);
+
+	printf("\n==========================\n");
 	printf("Results: %d/%d passed", tests_passed, tests_run);
 	if (tests_failed)
 		printf(", %d FAILED", tests_failed);

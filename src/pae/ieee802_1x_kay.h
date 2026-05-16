@@ -288,6 +288,31 @@ int ieee802_1x_kay_get_mib(struct ieee802_1x_kay *kay, char *buf,
 #ifdef CONFIG_IEEE8021X_2020
 int ieee802_1x_kay_suspend(struct ieee802_1x_kay *kay);
 int ieee802_1x_kay_resume(struct ieee802_1x_kay *kay);
+
+/**
+ * ieee802_1x_kay_create_mka_2020 - Create MKA participant with 2020 extensions
+ * @kay: KaY state machine pointer.
+ * @ckn: CAK Name.
+ * @cak: Connectivity Association Key.
+ * @life: MKA life time in milliseconds.
+ * @mode: Creation mode (PSK or EAP_EXCHANGE).
+ * @is_authenticator: True if this participant acts as authenticator.
+ * @rp_key: Pre-shared group CAK key (may be NULL if not applicable).
+ * Returns: Pointer to new participant, or NULL on failure.
+ *
+ * Extended version of ieee802_1x_kay_create_mka() for 802.1X-2020.
+ * Sets participant->is_group_cak and stores rp_key if provided.
+ *
+ * @implements #15 REQ-F-MKA-003 (group CAK per Clause 9.3.3 update)
+ * @governed #36 ADR-MKA-001
+ */
+struct ieee802_1x_mka_participant *
+ieee802_1x_kay_create_mka_2020(struct ieee802_1x_kay *kay,
+				const struct mka_key_name *ckn,
+				const struct mka_key *cak,
+				u32 life, enum mka_created_mode mode,
+				bool is_authenticator,
+				const struct mka_key *rp_key);
 #endif /* CONFIG_IEEE8021X_2020 */
 
 #endif /* IEEE802_1X_KAY_H */

@@ -151,6 +151,9 @@ struct ieee802_1x_mka_participant {
 
 #ifdef CONFIG_IEEE8021X_2020
 	bool suspended;              /* True when MKA session is suspended */
+	bool is_group_cak;           /* True if CAK is a pre-shared group CAK */
+	struct mka_key rp_key;       /* Resilience Passthrough key (group CAK) */
+	bool rp_key_set;             /* True if rp_key has been populated */
 #endif /* CONFIG_IEEE8021X_2020 */
 };
 

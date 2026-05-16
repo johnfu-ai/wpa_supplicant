@@ -1257,6 +1257,10 @@ struct wpa_supplicant {
 	struct ieee802_1x_kay *kay;
 #endif /* CONFIG_MACSEC */
 
+#ifdef CONFIG_IEEE8021X_2020_LOGON
+	struct ieee802_1x_logon *logon;
+#endif /* CONFIG_IEEE8021X_2020_LOGON */
+
 	int pno;
 	int pno_sched_pending;
 

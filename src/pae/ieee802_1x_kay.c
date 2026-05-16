@@ -3756,6 +3756,8 @@ ieee802_1x_kay_create_mka(struct ieee802_1x_kay *kay,
 
 #ifdef CONFIG_IEEE8021X_2020
 	participant->suspended = false;
+	participant->is_group_cak = false;
+	participant->rp_key_set = false;
 #endif
 
 	if (participant->is_key_server)
@@ -3842,6 +3844,47 @@ fail:
 	os_free(participant);
 	return NULL;
 }
+
+
+#ifdef CONFIG_IEEE8021X_2020
+/**
+ * ieee802_1x_kay_create_mka_2020 - Create MKA participant with 2020 extensions
+ *
+ * Extended version of ieee802_1x_kay_create_mka() for 802.1X-2020.
+ * Creates participant via the existing function, then adds group CAK
+ * fields if rp_key is provided.
+ *
+ * Implements: #15 REQ-F-MKA-003 (group CAK per Clause 9.3.3 update)
+ * Governed:   #36 ADR-MKA-001
+ * See:        IEEE 802.1X-2020, Clause 9.3.3
+ */
+struct ieee802_1x_mka_participant *
+ieee802_1x_kay_create_mka_2020(struct ieee802_1x_kay *kay,
+				const struct mka_key_name *ckn,
+				const struct mka_key *cak,
+				u32 life, enum mka_created_mode mode,
+				bool is_authenticator,
+				const struct mka_key *rp_key)
+{
+	struct ieee802_1x_mka_participant *participant;
+
+	participant = ieee802_1x_kay_create_mka(kay, ckn, cak, life,
+						 mode, is_authenticator);
+	if (!participant)
+		return NULL;
+
+	if (rp_key && rp_key->len > 0) {
+		participant->is_group_cak = true;
+		os_memcpy(participant->rp_key.key, rp_key->key, rp_key->len);
+		participant->rp_key.len = rp_key->len;
+		participant->rp_key_set = true;
+		wpa_printf(MSG_DEBUG, "KaY: Group CAK set (len=%zu)",
+			   rp_key->len);
+	}
+
+	return participant;
+}
+#endif /* CONFIG_IEEE8021X_2020 */
 
 
 /**
