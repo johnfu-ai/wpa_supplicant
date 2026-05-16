@@ -32,6 +32,11 @@ struct ieee802_1x_logon {
 	struct ieee802_1x_logon_ctx *ctx;
 	enum ieee802_1x_logon_state state;
 	bool port_enabled;
+
+	/* NID table per Clause 12.5.3 */
+	struct ieee802_1x_nid_entry nid_table[NID_TABLE_MAX];
+	size_t nid_count;
+	int current_nid; /* index into nid_table, -1 if none selected */
 };
 
 
@@ -62,6 +67,8 @@ ieee802_1x_logon_init(struct ieee802_1x_logon_ctx *ctx)
 	/* IEEE 802.1X-2020 Clause 12 — initialize Logon Process state */
 	logon->ctx   = ctx;
 	logon->state = LOGON_DISCONNECTED;
+	logon->nid_count = 0;
+	logon->current_nid = -1;
 
 	wpa_printf(MSG_DEBUG, "LOGON: initialized (state=DISCONNECTED)");
 	return logon;
@@ -273,6 +280,141 @@ ieee802_1x_logon_get_ctx(const struct ieee802_1x_logon *logon)
 {
 	/* IEEE 802.1X-2020 Clause 12 — return DI context pointer */
 	return logon->ctx;
+}
+
+
+/*
+ * NID Management — per IEEE 802.1X-2020 Clause 12.5.3
+ *
+ * Implements: #20 REQ-F-LOGON-002 (NID management and per-network policy)
+ * Implements: #50 REQ-F-NID-001 (Multi-NID group management)
+ */
+
+struct ieee802_1x_nid_entry *
+ieee802_1x_logon_nid_add(struct ieee802_1x_logon *logon, const char *name)
+{
+	size_t i;
+	size_t name_len;
+
+	if (!logon || !name)
+		return NULL;
+
+	name_len = os_strlen(name);
+	if (name_len == 0 || name_len >= NID_NAME_MAX_LEN)
+		return NULL;
+
+	if (logon->nid_count >= NID_TABLE_MAX) {
+		wpa_printf(MSG_ERROR, "LOGON: NID table full (%d)", NID_TABLE_MAX);
+		return NULL;
+	}
+
+	/* Check for duplicate */
+	for (i = 0; i < logon->nid_count; i++) {
+		if (os_strcmp(logon->nid_table[i].name, name) == 0) {
+			wpa_printf(MSG_DEBUG, "LOGON: NID '%s' already exists", name);
+			return &logon->nid_table[i];
+		}
+	}
+
+	/* Add new entry */
+	i = logon->nid_count;
+	os_memset(&logon->nid_table[i], 0, sizeof(logon->nid_table[i]));
+	os_memcpy(logon->nid_table[i].name, name, name_len + 1);
+	/* Default policy: use_eap=false, unauth/never, unsecure/never */
+	logon->nid_table[i].use_eap = false;
+	logon->nid_table[i].unauth_allowed = NID_ACCESS_NEVER;
+	logon->nid_table[i].unsecure_allowed = NID_ACCESS_NEVER;
+	logon->nid_table[i].cak_cached = false;
+	logon->nid_count++;
+
+	wpa_printf(MSG_DEBUG, "LOGON: added NID '%s' (total %d)",
+		   name, (int)logon->nid_count);
+	return &logon->nid_table[i];
+}
+
+
+struct ieee802_1x_nid_entry *
+ieee802_1x_logon_nid_lookup(struct ieee802_1x_logon *logon, const char *name)
+{
+	size_t i;
+
+	if (!logon || !name)
+		return NULL;
+
+	for (i = 0; i < logon->nid_count; i++) {
+		if (os_strcmp(logon->nid_table[i].name, name) == 0)
+			return &logon->nid_table[i];
+	}
+
+	return NULL;
+}
+
+
+int ieee802_1x_logon_nid_remove(struct ieee802_1x_logon *logon, const char *name)
+{
+	size_t i;
+
+	if (!logon || !name)
+		return -1;
+
+	for (i = 0; i < logon->nid_count; i++) {
+		if (os_strcmp(logon->nid_table[i].name, name) == 0) {
+			/* If removing the current NID, clear selection */
+			if (logon->current_nid == (int)i)
+				logon->current_nid = -1;
+			else if (logon->current_nid > (int)i)
+				logon->current_nid--;
+
+			/* Shift remaining entries down */
+			for (; i + 1 < logon->nid_count; i++)
+				logon->nid_table[i] = logon->nid_table[i + 1];
+			logon->nid_count--;
+			wpa_printf(MSG_DEBUG, "LOGON: removed NID '%s'", name);
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+
+size_t ieee802_1x_logon_nid_count(struct ieee802_1x_logon *logon)
+{
+	if (!logon)
+		return 0;
+	return logon->nid_count;
+}
+
+
+int ieee802_1x_logon_nid_set_current(struct ieee802_1x_logon *logon,
+				       const char *name)
+{
+	size_t i;
+
+	if (!logon || !name)
+		return -1;
+
+	for (i = 0; i < logon->nid_count; i++) {
+		if (os_strcmp(logon->nid_table[i].name, name) == 0) {
+			logon->current_nid = (int)i;
+			wpa_printf(MSG_DEBUG, "LOGON: current NID set to '%s'", name);
+			return 0;
+		}
+	}
+
+	wpa_printf(MSG_DEBUG, "LOGON: NID '%s' not found for selection", name);
+	return -1;
+}
+
+
+const char *
+ieee802_1x_logon_nid_get_current(struct ieee802_1x_logon *logon)
+{
+	if (!logon || logon->current_nid < 0 ||
+	    (size_t)logon->current_nid >= logon->nid_count)
+		return NULL;
+
+	return logon->nid_table[logon->current_nid].name;
 }
 
 #endif /* CONFIG_IEEE8021X_2020_LOGON */

@@ -24,6 +24,35 @@ struct mka_key;
 enum mka_created_mode;
 
 /**
+ * enum nid_access - NID access policy per Clause 12.5.1
+ *
+ * Controls when unauthenticated or unsecured access is allowed.
+ */
+enum nid_access {
+	NID_ACCESS_NEVER,       /* Access never allowed */
+	NID_ACCESS_IMMEDIATE,   /* Access allowed immediately */
+	NID_ACCESS_ON_FAILURE,  /* Access allowed after auth failure */
+	NID_ACCESS_TIMEOUT,     /* Access allowed after timeout */
+};
+
+#define NID_NAME_MAX_LEN 64
+#define NID_TABLE_MAX 16
+
+/**
+ * struct ieee802_1x_nid_entry - Network Identity entry per Clause 12.5.3
+ *
+ * Associates a network identity with access control parameters.
+ * Per IEEE 802.1X-2020 Clause 12.5.3 YANG type pae-nid.
+ */
+struct ieee802_1x_nid_entry {
+	char name[NID_NAME_MAX_LEN]; /* Network identifier */
+	bool use_eap;                 /* Whether EAP authentication is required */
+	enum nid_access unauth_allowed;  /* Unauthenticated access policy */
+	enum nid_access unsecure_allowed; /* Unsecured (non-MACsec) access policy */
+	bool cak_cached;              /* Whether a cached CAK exists for this NID */
+};
+
+/**
  * enum ieee802_1x_logon_state - Logon Process connectivity states
  *
  * Per IEEE 802.1X-2020 Clause 12 Logon Process state machine.
@@ -140,5 +169,57 @@ ieee802_1x_logon_get_state(const struct ieee802_1x_logon *logon);
  */
 struct ieee802_1x_logon_ctx *
 ieee802_1x_logon_get_ctx(const struct ieee802_1x_logon *logon);
+
+/**
+ * ieee802_1x_logon_nid_add - Add an NID entry to the Logon Process NID table
+ * @logon: State machine pointer.
+ * @name: NID name (must not be NULL).
+ * Returns: Pointer to the new entry, or NULL on failure.
+ *
+ * @implements #20 REQ-F-LOGON-002: NID management
+ * @see IEEE 802.1X-2020, Clause 12.5.3
+ */
+struct ieee802_1x_nid_entry *
+ieee802_1x_logon_nid_add(struct ieee802_1x_logon *logon, const char *name);
+
+/**
+ * ieee802_1x_logon_nid_lookup - Find an NID entry by name
+ * @logon: State machine pointer.
+ * @name: NID name to look up.
+ * Returns: Pointer to the entry, or NULL if not found.
+ */
+struct ieee802_1x_nid_entry *
+ieee802_1x_logon_nid_lookup(struct ieee802_1x_logon *logon, const char *name);
+
+/**
+ * ieee802_1x_logon_nid_remove - Remove an NID entry
+ * @logon: State machine pointer.
+ * @name: NID name to remove.
+ * Returns: 0 on success, -1 if not found.
+ */
+int ieee802_1x_logon_nid_remove(struct ieee802_1x_logon *logon, const char *name);
+
+/**
+ * ieee802_1x_logon_nid_count - Return number of NID entries
+ * @logon: State machine pointer.
+ */
+size_t ieee802_1x_logon_nid_count(struct ieee802_1x_logon *logon);
+
+/**
+ * ieee802_1x_logon_nid_set_current - Set the currently active NID
+ * @logon: State machine pointer.
+ * @name: NID name to activate (must exist in table).
+ * Returns: 0 on success, -1 if NID not found.
+ */
+int ieee802_1x_logon_nid_set_current(struct ieee802_1x_logon *logon,
+				       const char *name);
+
+/**
+ * ieee802_1x_logon_nid_get_current - Get the currently active NID name
+ * @logon: State machine pointer.
+ * Returns: NID name, or NULL if no NID is selected.
+ */
+const char *
+ieee802_1x_logon_nid_get_current(struct ieee802_1x_logon *logon);
 
 #endif /* IEEE802_1X_LOGON_H */

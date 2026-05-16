@@ -23,11 +23,15 @@ test_ieee802_1x_pacp: test_ieee802_1x_pacp.c
 test_ieee802_1x_cp: test_ieee802_1x_cp.c
 	$(CC) $(CFLAGS) -o $@ $<
 
-test: test_ieee802_1x_logon test_ieee802_1x_kay test_ieee802_1x_pacp test_ieee802_1x_cp
+test_ieee802_1x_nid: test_ieee802_1x_nid.c $(SRC_PAE)/ieee802_1x_logon.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+test: test_ieee802_1x_logon test_ieee802_1x_kay test_ieee802_1x_pacp test_ieee802_1x_cp test_ieee802_1x_nid
 	./test_ieee802_1x_logon
 	./test_ieee802_1x_kay
 	./test_ieee802_1x_pacp
 	./test_ieee802_1x_cp
+	./test_ieee802_1x_nid
 
 clean:
-	rm -f test_ieee802_1x_logon test_ieee802_1x_kay test_ieee802_1x_pacp test_ieee802_1x_cp
+	rm -f test_ieee802_1x_logon test_ieee802_1x_kay test_ieee802_1x_pacp test_ieee802_1x_cp test_ieee802_1x_nid
