@@ -237,6 +237,8 @@ struct ieee802_1x_kay {
 
 #ifdef CONFIG_IEEE8021X_2020
 	bool mka_suspended;          /* Global flag: at least one participant suspended */
+	void (*cp_secured_cb)(void *ctx);  /* CP SECURED notification callback */
+	void *cp_secured_cb_ctx;           /* Context for cp_secured_cb */
 #endif /* CONFIG_IEEE8021X_2020 */
 };
 

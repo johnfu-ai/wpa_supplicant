@@ -10,6 +10,7 @@
 #include "common.h"
 #include "wpa_supplicant_i.h"
 #include "pae/ieee802_1x_logon.h"
+#include "pae/ieee802_1x_kay.h"
 #include "eapol_supp/eapol_supp_sm.h"
 #include "wpas_logon.h"
 
@@ -95,6 +96,23 @@ static void wpas_pacp_auth_failure_cb(void *ctx)
 }
 
 
+/*
+ * CP secured callback — called when CP enters SECURED state.
+ * Signals the Logon Process that MACsec is fully established.
+ * Implements: #48 REQ-F-CP-001
+ */
+#ifdef CONFIG_IEEE8021X_2020
+static void wpas_cp_secured_cb(void *ctx)
+{
+	struct wpa_supplicant *wpa_s = ctx;
+
+	wpa_printf(MSG_DEBUG, "LOGON: CP secured -> logon_secured");
+	if (wpa_s->logon)
+		ieee802_1x_logon_secured(wpa_s->logon);
+}
+#endif
+
+
 int wpas_logon_init(struct wpa_supplicant *wpa_s)
 {
 	struct ieee802_1x_logon_ctx logon_ctx;
@@ -126,6 +144,14 @@ int wpas_logon_init(struct wpa_supplicant *wpa_s)
 		logon_if.auth_failure = wpas_pacp_auth_failure_cb;
 		eapol_sm_set_logon_if(wpa_s->eapol, &logon_if);
 	}
+
+#ifdef CONFIG_IEEE8021X_2020
+	/* Register CP secured callback with KaY */
+	if (wpa_s->kay) {
+		wpa_s->kay->cp_secured_cb = wpas_cp_secured_cb;
+		wpa_s->kay->cp_secured_cb_ctx = wpa_s;
+	}
+#endif
 
 	wpa_printf(MSG_DEBUG, "LOGON: initialized");
 	return 0;

@@ -228,6 +228,14 @@ SM_STATE(CP, SECURED)
 	secy_cp_control_validate_frames(sm->kay, sm->validate_frames);
 	secy_cp_control_replay(sm->kay, sm->replay_protect, sm->replay_window);
 	secy_cp_control_offload(sm->kay, sm->offload);
+
+#ifdef CONFIG_IEEE8021X_2020
+	/* Signal Logon Process that MACsec is secured.
+	 * Implements: #48 REQ-F-CP-001
+	 * See: IEEE 802.1X-2020, Clause 10 */
+	if (sm->kay && sm->kay->cp_secured_cb)
+		sm->kay->cp_secured_cb(sm->kay->cp_secured_cb_ctx);
+#endif
 }
 
 
