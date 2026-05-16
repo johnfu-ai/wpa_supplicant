@@ -142,11 +142,40 @@ struct eapol_sm {
 
 	bool force_authorized_update;
 
+#ifdef CONFIG_IEEE8021X_2020
+	/* ---- 802.1X-2020 Clause 8 additions ---- */
+	bool pacp_nid_associated;
+	bool eapStart_nid;
+	bool reAuthenticate;
+	bool auth_notify_success;
+	bool auth_notify_failure;
+	struct ieee802_1x_pacp_logon_if *logon_if;
+#endif /* CONFIG_IEEE8021X_2020 */
+
 #ifdef CONFIG_EAP_PROXY
 	bool use_eap_proxy;
 	struct eap_proxy_sm *eap_proxy;
 #endif /* CONFIG_EAP_PROXY */
 };
+
+#ifdef CONFIG_IEEE8021X_2020
+/*
+ * Variable aliases: 802.1X-2020 PACP naming conventions.
+ * Per ADR-PAE-001 (#34): alias rather than rename.
+ */
+#define authWhileCounter     authWhile
+#define heldWhileCounter     heldWhile
+#define startWhenCounter     startWhen
+
+#define SUPP_PACP_DISCONNECTED   SUPP_PAE_DISCONNECTED
+#define SUPP_PACP_CONNECTING     SUPP_PAE_CONNECTING
+#define SUPP_PACP_AUTHENTICATING SUPP_PAE_AUTHENTICATING
+#define SUPP_PACP_AUTHENTICATED  SUPP_PAE_AUTHENTICATED
+#define SUPP_PACP_HELD           SUPP_PAE_HELD
+#define SUPP_PACP_RESTART        SUPP_PAE_RESTART
+
+#define pacpPortStatus  suppPortStatus
+#endif /* CONFIG_IEEE8021X_2020 */
 
 
 static void eapol_sm_txLogoff(struct eapol_sm *sm);
@@ -258,6 +287,11 @@ SM_STATE(SUPP_PAE, CONNECTING)
 	int send_start = sm->SUPP_PAE_state == SUPP_PAE_CONNECTING ||
 		sm->SUPP_PAE_state == SUPP_PAE_HELD;
 	SM_ENTRY(SUPP_PAE, CONNECTING);
+
+#ifdef CONFIG_IEEE8021X_2020
+	sm->auth_notify_success = false;
+	sm->auth_notify_failure = false;
+#endif
 
 	if (sm->eapTriggerStart)
 		send_start = 1;
@@ -432,6 +466,12 @@ SM_STEP(SUPP_PAE)
 			SM_ENTER(SUPP_PAE, RESTART);
 		break;
 	case SUPP_PAE_AUTHENTICATED:
+#ifdef CONFIG_IEEE8021X_2020
+		if (sm->reAuthenticate) {
+			sm->reAuthenticate = false;
+			SM_ENTER(SUPP_PAE, RESTART);
+		} else
+#endif
 		if (sm->eapolEap && sm->portValid)
 			SM_ENTER(SUPP_PAE, RESTART);
 		else if (!sm->portValid)
@@ -953,6 +993,13 @@ static void eapol_sm_set_port_authorized(struct eapol_sm *sm)
 	sm->suppPortStatus = Authorized;
 	if (cb && sm->ctx->port_cb)
 		sm->ctx->port_cb(sm->ctx->ctx, 1);
+#ifdef CONFIG_IEEE8021X_2020
+	if (sm->logon_if && sm->logon_if->auth_success &&
+	    !sm->auth_notify_success) {
+		sm->logon_if->auth_success(sm->logon_if->ctx);
+		sm->auth_notify_success = true;
+	}
+#endif
 }
 
 
@@ -965,6 +1012,13 @@ static void eapol_sm_set_port_unauthorized(struct eapol_sm *sm)
 	sm->suppPortStatus = Unauthorized;
 	if (cb && sm->ctx->port_cb)
 		sm->ctx->port_cb(sm->ctx->ctx, 0);
+#ifdef CONFIG_IEEE8021X_2020
+	if (sm->logon_if && sm->logon_if->auth_failure &&
+	    !sm->auth_notify_failure) {
+		sm->logon_if->auth_failure(sm->logon_if->ctx);
+		sm->auth_notify_failure = true;
+	}
+#endif
 }
 
 
@@ -1821,6 +1875,40 @@ void eapol_sm_request_reauth(struct eapol_sm *sm)
 }
 
 
+#ifdef CONFIG_IEEE8021X_2020
+/**
+ * eapol_sm_set_logon_if - Register Logon Process callback interface
+ * @sm: EAPOL supplicant state machine pointer.
+ * @logon_if: Pointer to Logon Process callback struct (copied internally).
+ *
+ * Stores the callback interface for use by the PACP state machine.
+ * Must be called before eapol_sm_step() for the interface to take effect.
+ * Passing NULL deregisters the interface.
+ *
+ * Implements: #9 REQ-F-PAE-005
+ * Governed:   #35 ADR-PAE-002
+ * See:        IEEE 802.1X-2020, Clause 12
+ */
+void eapol_sm_set_logon_if(struct eapol_sm *sm,
+			    const struct ieee802_1x_pacp_logon_if *logon_if)
+{
+	if (!sm)
+		return;
+	if (!logon_if) {
+		os_free(sm->logon_if);
+		sm->logon_if = NULL;
+		return;
+	}
+	if (!sm->logon_if) {
+		sm->logon_if = os_zalloc(sizeof(*sm->logon_if));
+		if (!sm->logon_if)
+			return;
+	}
+	os_memcpy(sm->logon_if, logon_if, sizeof(*logon_if));
+}
+#endif /* CONFIG_IEEE8021X_2020 */
+
+
 /**
  * eapol_sm_notify_lower_layer_success - Notification of lower layer success
  * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
@@ -2195,6 +2283,9 @@ void eapol_sm_deinit(struct eapol_sm *sm)
 #endif /* CONFIG_EAP_PROXY */
 	os_free(sm->last_rx_key);
 	wpabuf_free(sm->eapReqData);
+#ifdef CONFIG_IEEE8021X_2020
+	os_free(sm->logon_if);
+#endif
 	os_free(sm->ctx);
 	os_free(sm);
 }

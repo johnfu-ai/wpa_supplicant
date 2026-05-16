@@ -234,6 +234,10 @@ struct ieee802_1x_kay {
 
 	enum validate_frames vf;
 	enum confidentiality_offset co;
+
+#ifdef CONFIG_IEEE8021X_2020
+	bool mka_suspended;          /* Global flag: at least one participant suspended */
+#endif /* CONFIG_IEEE8021X_2020 */
 };
 
 
@@ -280,5 +284,10 @@ int ieee802_1x_kay_get_status(struct ieee802_1x_kay *kay, char *buf,
 			      size_t buflen);
 int ieee802_1x_kay_get_mib(struct ieee802_1x_kay *kay, char *buf,
 			   size_t buflen);
+
+#ifdef CONFIG_IEEE8021X_2020
+int ieee802_1x_kay_suspend(struct ieee802_1x_kay *kay);
+int ieee802_1x_kay_resume(struct ieee802_1x_kay *kay);
+#endif /* CONFIG_IEEE8021X_2020 */
 
 #endif /* IEEE802_1X_KAY_H */

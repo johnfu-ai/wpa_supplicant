@@ -148,6 +148,10 @@ struct ieee802_1x_mka_participant {
 	u32 retry_count;
 
 	struct ieee802_1x_kay *kay;
+
+#ifdef CONFIG_IEEE8021X_2020
+	bool suspended;              /* True when MKA session is suspended */
+#endif /* CONFIG_IEEE8021X_2020 */
 };
 
 struct ieee802_1x_mka_hdr {

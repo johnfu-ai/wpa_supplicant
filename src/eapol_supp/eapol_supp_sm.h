@@ -72,6 +72,26 @@ struct eapol_config {
 struct eapol_sm;
 struct wpa_config_blob;
 
+#ifdef CONFIG_IEEE8021X_2020
+/**
+ * struct ieee802_1x_pacp_logon_if - Logon Process callback interface for PACP
+ *
+ * Allows the Logon Process (Clause 12) to connect/disconnect
+ * the PACP session. The PACP signals authentication outcomes back
+ * to the Logon Process through these callbacks.
+ *
+ * Per ADR-PAE-002 (#35) -- function-pointer DI pattern.
+ * Guarded by #ifdef CONFIG_IEEE8021X_2020.
+ */
+struct ieee802_1x_pacp_logon_if {
+	void *ctx;
+	void (*logon_connect)(void *ctx);
+	void (*logon_disconnect)(void *ctx);
+	void (*auth_success)(void *ctx);
+	void (*auth_failure)(void *ctx);
+};
+#endif /* CONFIG_IEEE8021X_2020 */
+
 enum eapol_supp_result {
 	EAPOL_SUPP_RESULT_FAILURE,
 	EAPOL_SUPP_RESULT_SUCCESS,
@@ -355,6 +375,11 @@ void eapol_sm_notify_portControl(struct eapol_sm *sm, PortControl portControl);
 void eapol_sm_notify_ctrl_attached(struct eapol_sm *sm);
 void eapol_sm_notify_ctrl_response(struct eapol_sm *sm);
 void eapol_sm_request_reauth(struct eapol_sm *sm);
+
+#ifdef CONFIG_IEEE8021X_2020
+void eapol_sm_set_logon_if(struct eapol_sm *sm,
+			    const struct ieee802_1x_pacp_logon_if *logon_if);
+#endif /* CONFIG_IEEE8021X_2020 */
 void eapol_sm_notify_lower_layer_success(struct eapol_sm *sm, int in_eapol_sm);
 void eapol_sm_invalidate_cached_session(struct eapol_sm *sm);
 const char * eapol_sm_get_method_name(struct eapol_sm *sm);

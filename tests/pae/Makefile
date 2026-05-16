@@ -14,8 +14,16 @@ SRC_PAE  = ../../src/pae
 test_ieee802_1x_logon: test_ieee802_1x_logon.c $(SRC_PAE)/ieee802_1x_logon.c
 	$(CC) $(CFLAGS) -o $@ $^
 
-test: test_ieee802_1x_logon
+test_ieee802_1x_kay: test_ieee802_1x_kay.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+test_ieee802_1x_pacp: test_ieee802_1x_pacp.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+test: test_ieee802_1x_logon test_ieee802_1x_kay test_ieee802_1x_pacp
 	./test_ieee802_1x_logon
+	./test_ieee802_1x_kay
+	./test_ieee802_1x_pacp
 
 clean:
-	rm -f test_ieee802_1x_logon
+	rm -f test_ieee802_1x_logon test_ieee802_1x_kay test_ieee802_1x_pacp

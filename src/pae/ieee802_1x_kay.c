@@ -2570,6 +2570,16 @@ static void ieee802_1x_participant_timer(void *eloop_ctx, void *timeout_ctx)
 	kay = participant->kay;
 	wpa_printf(MSG_DEBUG, "KaY: Participant timer (ifname=%s)",
 		   kay->if_name);
+#ifdef CONFIG_IEEE8021X_2020
+	if (participant->suspended) {
+		wpa_printf(MSG_DEBUG,
+			   "KaY: Participant suspended, skipping MKPDU tx");
+		eloop_register_timeout(kay->mka_hello_time / 1000, 0,
+				       ieee802_1x_participant_timer,
+				       participant, NULL);
+		return;
+	}
+#endif
 	if (participant->cak_life) {
 		if (now > participant->cak_life)
 			goto delete_mka;
@@ -3744,6 +3754,10 @@ ieee802_1x_kay_create_mka(struct ieee802_1x_kay *kay,
 	participant->retain = false;
 	participant->activate = DEFAULT;
 
+#ifdef CONFIG_IEEE8021X_2020
+	participant->suspended = false;
+#endif
+
 	if (participant->is_key_server)
 		participant->principal = true;
 
@@ -4183,3 +4197,74 @@ int ieee802_1x_kay_get_mib(struct ieee802_1x_kay *kay, char *buf,
 }
 
 #endif /* CONFIG_CTRL_IFACE */
+
+
+#ifdef CONFIG_IEEE8021X_2020
+
+/**
+ * ieee802_1x_kay_suspend - Suspend MKA session for all participants
+ * @kay: KaY state machine pointer.
+ * Returns: 0 on success, -1 on failure.
+ *
+ * Per IEEE 802.1X-2020 Clause 9 suspension procedure:
+ * - Sets participant->suspended = true for all active participants
+ * - Stops MKPDU transmission (skip in participant timer)
+ * - Retains peer state, SAK state, and participant data
+ *
+ * Implements: #17 REQ-F-MKA-005 (MKA suspension)
+ * Governed:   #36 ADR-MKA-001
+ * See:        IEEE 802.1X-2020, Clause 9
+ */
+int ieee802_1x_kay_suspend(struct ieee802_1x_kay *kay)
+{
+	struct ieee802_1x_mka_participant *participant;
+
+	if (!kay)
+		return -1;
+
+	dl_list_for_each(participant, &kay->participant_list,
+			 struct ieee802_1x_mka_participant, list) {
+		participant->suspended = true;
+		wpa_printf(MSG_DEBUG,
+			   "KaY: Participant suspended (ckn=%p)",
+			   &participant->ckn);
+	}
+
+	kay->mka_suspended = true;
+	return 0;
+}
+
+
+/**
+ * ieee802_1x_kay_resume - Resume a previously suspended MKA session
+ * @kay: KaY state machine pointer.
+ * Returns: 0 on success, -1 on failure.
+ *
+ * Per IEEE 802.1X-2020 Clause 9 resume procedure:
+ * - Clears participant->suspended for all participants
+ * - Resumes MKPDU transmission on next state machine call
+ *
+ * Implements: #17 REQ-F-MKA-005 (MKA suspension)
+ * Governed:   #36 ADR-MKA-001
+ * See:        IEEE 802.1X-2020, Clause 9
+ */
+int ieee802_1x_kay_resume(struct ieee802_1x_kay *kay)
+{
+	struct ieee802_1x_mka_participant *participant;
+
+	if (!kay)
+		return -1;
+
+	dl_list_for_each(participant, &kay->participant_list,
+			 struct ieee802_1x_mka_participant, list) {
+		participant->suspended = false;
+		wpa_printf(MSG_DEBUG,
+			   "KaY: Participant resumed (ckn=%p)",
+			   &participant->ckn);
+	}
+
+	kay->mka_suspended = false;
+	return 0;
+}
+
+#endif /* CONFIG_IEEE8021X_2020 */
