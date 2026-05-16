@@ -976,6 +976,7 @@ CFLAGS += -DCONFIG_IEEE8021X_2020_LOGON
 CFLAGS += -DCONFIG_IEEE8021X_2020
 OBJS += ../src/pae/ieee802_1x_logon.o
 OBJS += wpas_logon.o
+OBJS += ../src/pae/ieee802_1x_ancp.o
 endif
 
 ifdef CONFIG_IEEE8021X_EAPOL
