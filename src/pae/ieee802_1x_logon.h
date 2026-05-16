@@ -115,6 +115,17 @@ void ieee802_1x_logon_auth_success(struct ieee802_1x_logon *logon);
 void ieee802_1x_logon_auth_failure(struct ieee802_1x_logon *logon);
 
 /**
+ * ieee802_1x_logon_secured - Notify Logon Process that MACsec is now established
+ * @logon: State machine pointer.
+ *
+ * Transitions from AUTHENTICATED to SECURED and signals CP to set port
+ * connectivity to SECURE. Per IEEE 802.1X-2020 Clause 12.
+ *
+ * @implements #22 REQ-F-LOGON-004: CP connectivity signalling — secure
+ */
+void ieee802_1x_logon_secured(struct ieee802_1x_logon *logon);
+
+/**
  * ieee802_1x_logon_get_state - Return current Logon Process state (for testing)
  * @logon: State machine pointer.
  * Returns: Current state enum value.

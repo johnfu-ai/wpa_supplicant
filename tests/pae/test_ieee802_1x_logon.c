@@ -87,6 +87,9 @@ static int tests_failed = 0;
 static int mock_logon_connect_called;
 static int mock_logon_disconnect_called;
 static int mock_cp_connect_authenticated_called;
+static int mock_cp_connect_unauthenticated_called;
+static int mock_cp_connect_secure_called;
+static int mock_cp_connect_pending_called;
 
 static void mock_logon_connect(void *ctx) {
 	(void)ctx;
@@ -98,9 +101,9 @@ static void mock_logon_disconnect(void *ctx) {
 	mock_logon_disconnect_called = 1;
 }
 static void mock_cp_connect_authenticated(void *ctx)  { (void)ctx; mock_cp_connect_authenticated_called = 1; }
-static void mock_cp_connect_secure(void *ctx)         { (void)ctx; }
-static void mock_cp_connect_pending(void *ctx)        { (void)ctx; }
-static void mock_cp_connect_unauthenticated(void *ctx){ (void)ctx; }
+static void mock_cp_connect_secure(void *ctx)         { (void)ctx; mock_cp_connect_secure_called = 1; }
+static void mock_cp_connect_pending(void *ctx)        { (void)ctx; mock_cp_connect_pending_called = 1; }
+static void mock_cp_connect_unauthenticated(void *ctx){ (void)ctx; mock_cp_connect_unauthenticated_called = 1; }
 
 static struct ieee802_1x_logon_ctx make_valid_ctx(void *opaque)
 {
@@ -310,6 +313,310 @@ TEST(test_port_enabled_null_is_safe)
 }
 
 /* ------------------------------------------------------------------ */
+/* auth_success tests                                                    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * TC-AUTH-SUCCESS-001
+ * auth_success from LOGON state transitions to AUTHENTICATED.
+ *
+ * Verifies: #21 REQ-F-LOGON-003 (PACP authentication success state transition)
+ * See: IEEE 802.1X-2020, Clause 12
+ */
+TEST(test_auth_success_from_logon_transitions_to_authenticated)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	ieee802_1x_logon_port_enabled(logon, true);
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_LOGON);
+
+	ieee802_1x_logon_auth_success(logon);
+
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_AUTHENTICATED);
+
+	ieee802_1x_logon_deinit(logon);
+}
+
+/*
+ * TC-AUTH-SUCCESS-002
+ * auth_success must invoke the cp_connect_authenticated callback.
+ *
+ * Verifies: #22 REQ-F-LOGON-004 (CP connectivity signalling on success)
+ * See: IEEE 802.1X-2020, Clause 12
+ */
+TEST(test_auth_success_calls_cp_connect_authenticated)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	ieee802_1x_logon_port_enabled(logon, true);
+
+	mock_cp_connect_authenticated_called = 0;
+	ieee802_1x_logon_auth_success(logon);
+
+	if (!mock_cp_connect_authenticated_called)
+		FAIL("cp_connect_authenticated callback was not called");
+
+	ieee802_1x_logon_deinit(logon);
+}
+
+/* ------------------------------------------------------------------ */
+/* auth_failure tests                                                    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * TC-AUTH-FAILURE-001
+ * auth_failure from LOGON state transitions to DISCONNECTED.
+ *
+ * Verifies: #21 REQ-F-LOGON-003 (PACP authentication failure state transition)
+ * See: IEEE 802.1X-2020, Clause 12
+ */
+TEST(test_auth_failure_from_logon_transitions_to_disconnected)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	ieee802_1x_logon_port_enabled(logon, true);
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_LOGON);
+
+	ieee802_1x_logon_auth_failure(logon);
+
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_DISCONNECTED);
+
+	ieee802_1x_logon_deinit(logon);
+}
+
+/*
+ * TC-AUTH-FAILURE-002
+ * auth_failure must invoke the logon_disconnect callback.
+ *
+ * Verifies: #21 REQ-F-LOGON-003 (PACP termination on failure)
+ * See: IEEE 802.1X-2020, Clause 12
+ */
+TEST(test_auth_failure_calls_logon_disconnect)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	ieee802_1x_logon_port_enabled(logon, true);
+
+	mock_logon_disconnect_called = 0;
+	ieee802_1x_logon_auth_failure(logon);
+
+	if (!mock_logon_disconnect_called)
+		FAIL("logon_disconnect callback was not called");
+
+	ieee802_1x_logon_deinit(logon);
+}
+
+/*
+ * TC-AUTH-FAILURE-003
+ * auth_failure must invoke the cp_connect_unauthenticated callback.
+ *
+ * Verifies: #22 REQ-F-LOGON-004 (CP connectivity signalling on failure)
+ * See: IEEE 802.1X-2020, Clause 12
+ */
+TEST(test_auth_failure_calls_cp_connect_unauthenticated)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	ieee802_1x_logon_port_enabled(logon, true);
+
+	mock_cp_connect_unauthenticated_called = 0;
+	ieee802_1x_logon_auth_failure(logon);
+
+	if (!mock_cp_connect_unauthenticated_called)
+		FAIL("cp_connect_unauthenticated callback was not called");
+
+	ieee802_1x_logon_deinit(logon);
+}
+
+/* ------------------------------------------------------------------ */
+/* NULL guard tests                                                      */
+/* ------------------------------------------------------------------ */
+
+/*
+ * TC-AUTH-NULL-001
+ * auth_success(NULL) and auth_failure(NULL) must not crash.
+ *
+ * Verifies: defensive NULL guard on auth entry points
+ */
+TEST(test_auth_null_is_safe)
+{
+	ieee802_1x_logon_auth_success(NULL);  /* must not crash */
+	ieee802_1x_logon_auth_failure(NULL);  /* must not crash */
+}
+
+/* ------------------------------------------------------------------ */
+/* SECURED state tests                                                   */
+/* ------------------------------------------------------------------ */
+
+/*
+ * TC-SECURED-001
+ * After auth_success, if cp_connect_secure is available, calling
+ * ieee802_1x_logon_secured() transitions from AUTHENTICATED to SECURED.
+ *
+ * Verifies: #22 REQ-F-LOGON-004 (CP connectivity signalling — secure)
+ * See: IEEE 802.1X-2020, Clause 12
+ */
+TEST(test_secured_from_authenticated_transitions_to_secured)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	/* Drive to AUTHENTICATED */
+	ieee802_1x_logon_port_enabled(logon, true);
+	ieee802_1x_logon_auth_success(logon);
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_AUTHENTICATED);
+
+	/* Now MACsec key establishment succeeds */
+	ieee802_1x_logon_secured(logon);
+
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_SECURED);
+	ieee802_1x_logon_deinit(logon);
+}
+
+/*
+ * TC-SECURED-002
+ * ieee802_1x_logon_secured() must invoke cp_connect_secure callback.
+ *
+ * Verifies: #22 REQ-F-LOGON-004 (CP secure connectivity signal)
+ * See: IEEE 802.1X-2020, Clause 12
+ */
+TEST(test_secured_calls_cp_connect_secure)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	ieee802_1x_logon_port_enabled(logon, true);
+	ieee802_1x_logon_auth_success(logon);
+
+	mock_cp_connect_secure_called = 0;
+	ieee802_1x_logon_secured(logon);
+
+	if (!mock_cp_connect_secure_called)
+		FAIL("cp_connect_secure callback was not called");
+
+	ieee802_1x_logon_deinit(logon);
+}
+
+/*
+ * TC-SECURED-003
+ * ieee802_1x_logon_secured(NULL) must not crash.
+ */
+TEST(test_secured_null_is_safe)
+{
+	ieee802_1x_logon_secured(NULL);  /* must not crash */
+}
+
+/* ------------------------------------------------------------------ */
+/* sm_step tests                                                         */
+/* ------------------------------------------------------------------ */
+
+/*
+ * TC-SM-STEP-001
+ * sm_step(NULL) must not crash.
+ */
+TEST(test_sm_step_null_is_safe)
+{
+	ieee802_1x_logon_sm_step(NULL);  /* must not crash */
+}
+
+/*
+ * TC-SM-STEP-002
+ * sm_step on a DISCONNECTED SM with port_enabled=false stays DISCONNECTED.
+ */
+TEST(test_sm_step_disconnected_stays_disconnected)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_DISCONNECTED);
+
+	ieee802_1x_logon_sm_step(logon);
+
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_DISCONNECTED);
+	ieee802_1x_logon_deinit(logon);
+}
+
+/*
+ * TC-SM-STEP-003
+ * sm_step on a LOGON SM signals cp_connect_pending.
+ *
+ * Verifies: #22 REQ-F-LOGON-004 (CP pending signal during authentication)
+ * See: IEEE 802.1X-2020, Clause 12
+ */
+TEST(test_sm_step_logon_signals_cp_pending)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	ieee802_1x_logon_port_enabled(logon, true);
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_LOGON);
+
+	mock_cp_connect_pending_called = 0;
+	ieee802_1x_logon_sm_step(logon);
+
+	if (!mock_cp_connect_pending_called)
+		FAIL("cp_connect_pending was not called in LOGON sm_step");
+
+	ieee802_1x_logon_deinit(logon);
+}
+
+/*
+ * TC-SM-STEP-004
+ * sm_step on a LOGON SM transitions to AUTHENTICATING.
+ *
+ * Verifies: #19 REQ-F-LOGON-001 (state machine progression)
+ * See: IEEE 802.1X-2020, Clause 12
+ */
+TEST(test_sm_step_logon_transitions_to_authenticating)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	ieee802_1x_logon_port_enabled(logon, true);
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_LOGON);
+
+	ieee802_1x_logon_sm_step(logon);
+
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_AUTHENTICATING);
+	ieee802_1x_logon_deinit(logon);
+}
+
+/*
+ * TC-SM-STEP-005
+ * sm_step on AUTHENTICATED or SECURED SM is a no-op (stable states).
+ */
+TEST(test_sm_step_authenticated_is_stable)
+{
+	struct ieee802_1x_logon_ctx ctx = make_valid_ctx(NULL);
+	struct ieee802_1x_logon *logon = ieee802_1x_logon_init(&ctx);
+
+	ASSERT_NOT_NULL(logon);
+	ieee802_1x_logon_port_enabled(logon, true);
+	ieee802_1x_logon_auth_success(logon);
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_AUTHENTICATED);
+
+	ieee802_1x_logon_sm_step(logon);
+
+	ASSERT_EQ(ieee802_1x_logon_get_state(logon), LOGON_AUTHENTICATED);
+	ieee802_1x_logon_deinit(logon);
+}
+
+/* ------------------------------------------------------------------ */
 /* Main                                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -330,6 +637,30 @@ int main(void)
 	RUN(test_port_enabled_false_transitions_to_disconnected);
 	RUN(test_port_enabled_false_calls_logon_disconnect);
 	RUN(test_port_enabled_null_is_safe);
+
+	printf("-- auth_success --\n");
+	RUN(test_auth_success_from_logon_transitions_to_authenticated);
+	RUN(test_auth_success_calls_cp_connect_authenticated);
+
+	printf("-- auth_failure --\n");
+	RUN(test_auth_failure_from_logon_transitions_to_disconnected);
+	RUN(test_auth_failure_calls_logon_disconnect);
+	RUN(test_auth_failure_calls_cp_connect_unauthenticated);
+
+	printf("-- auth NULL guards --\n");
+	RUN(test_auth_null_is_safe);
+
+	printf("-- secured (MACsec) --\n");
+	RUN(test_secured_from_authenticated_transitions_to_secured);
+	RUN(test_secured_calls_cp_connect_secure);
+	RUN(test_secured_null_is_safe);
+
+	printf("-- sm_step --\n");
+	RUN(test_sm_step_null_is_safe);
+	RUN(test_sm_step_disconnected_stays_disconnected);
+	RUN(test_sm_step_logon_signals_cp_pending);
+	RUN(test_sm_step_logon_transitions_to_authenticating);
+	RUN(test_sm_step_authenticated_is_stable);
 
 	printf("------------------------------------------------\n");
 	printf("Results: %d/%d passed", tests_passed, tests_run);

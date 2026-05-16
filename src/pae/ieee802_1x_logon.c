@@ -87,13 +87,36 @@ void ieee802_1x_logon_deinit(struct ieee802_1x_logon *logon)
  * ieee802_1x_logon_sm_step - Run one step of the Logon Process state machine
  * @logon: State machine pointer.
  *
- * Note: Implements IEEE 802.1X-2020 Clause 12 — Logon Process step (stub).
+ * Evaluates state transitions per IEEE 802.1X-2020 Clause 12.
+ * In LOGON state: signals CP pending and transitions to AUTHENTICATING.
+ * AUTHENTICATED and SECURED are stable states (no automatic transition).
+ * DISCONNECTED is idle (no action).
+ *
+ * @implements #19 REQ-F-LOGON-001: Logon Process state machine step
+ * @implements #22 REQ-F-LOGON-004: CP connectivity signalling — pending
  */
 void ieee802_1x_logon_sm_step(struct ieee802_1x_logon *logon)
 {
-	/* IEEE 802.1X-2020 Clause 12 — Logon Process state machine step (stub) */
 	if (!logon)
 		return;
+
+	switch (logon->state) {
+	case LOGON_LOGON:
+		/* IEEE 802.1X-2020 Clause 12 — LOGON: signal pending, advance */
+		if (logon->ctx->cp_connect_pending)
+			logon->ctx->cp_connect_pending(logon->ctx->ctx);
+		logon->state = LOGON_AUTHENTICATING;
+		wpa_printf(MSG_DEBUG, "LOGON: sm_step LOGON -> AUTHENTICATING");
+		break;
+	case LOGON_AUTHENTICATING:
+		/* Waiting for auth_success or auth_failure event — no auto transition */
+		break;
+	case LOGON_AUTHENTICATED:
+	case LOGON_SECURED:
+	case LOGON_DISCONNECTED:
+		/* Stable states — no automatic transition */
+		break;
+	}
 }
 
 
@@ -136,12 +159,31 @@ void ieee802_1x_logon_port_enabled(struct ieee802_1x_logon *logon,
  * ieee802_1x_logon_auth_success - Notify of PACP authentication success
  * @logon: State machine pointer.
  *
- * Note: Implements IEEE 802.1X-2020 Clause 12 — auth success notification (stub).
+ * When the Logon Process is in LOGON or AUTHENTICATING state, a successful
+ * PACP authentication transitions the SM to AUTHENTICATED and signals CP
+ * to set port connectivity to AUTHENTICATED.
+ *
+ * Note: Implements IEEE 802.1X-2020 Clause 12 — auth success notification.
+ *
+ * @implements #21 REQ-F-LOGON-003: PACP authentication success handling
+ * @implements #22 REQ-F-LOGON-004: CP connectivity signalling on success
+ * @see ADR-LOGON-001 (#37)
  */
 void ieee802_1x_logon_auth_success(struct ieee802_1x_logon *logon)
 {
-	/* IEEE 802.1X-2020 Clause 12 — Logon Process authentication success (stub) */
-	(void)logon;
+	if (!logon)
+		return;
+
+	/* IEEE 802.1X-2020 Clause 12 — auth success transitions */
+	if (logon->state == LOGON_LOGON ||
+	    logon->state == LOGON_AUTHENTICATING) {
+		wpa_printf(MSG_DEBUG,
+			   "LOGON: auth success -> AUTHENTICATED (from state %d)",
+			   logon->state);
+		logon->state = LOGON_AUTHENTICATED;
+		if (logon->ctx->cp_connect_authenticated)
+			logon->ctx->cp_connect_authenticated(logon->ctx->ctx);
+	}
 }
 
 
@@ -149,12 +191,58 @@ void ieee802_1x_logon_auth_success(struct ieee802_1x_logon *logon)
  * ieee802_1x_logon_auth_failure - Notify of PACP authentication failure
  * @logon: State machine pointer.
  *
- * Note: Implements IEEE 802.1X-2020 Clause 12 — auth failure notification (stub).
+ * When the Logon Process is not in DISCONNECTED state, an authentication
+ * failure tears down the session: PACP is signalled to disconnect, CP is
+ * signalled to set port connectivity to UNAUTHENTICATED, and the SM
+ * transitions to DISCONNECTED.
+ *
+ * Note: Implements IEEE 802.1X-2020 Clause 12 — auth failure notification.
+ *
+ * @implements #21 REQ-F-LOGON-003: PACP authentication failure handling
+ * @implements #22 REQ-F-LOGON-004: CP connectivity signalling on failure
+ * @see ADR-LOGON-001 (#37)
  */
 void ieee802_1x_logon_auth_failure(struct ieee802_1x_logon *logon)
 {
-	/* IEEE 802.1X-2020 Clause 12 — Logon Process authentication failure (stub) */
-	(void)logon;
+	if (!logon)
+		return;
+
+	/* IEEE 802.1X-2020 Clause 12 — auth failure teardown */
+	if (logon->state != LOGON_DISCONNECTED) {
+		wpa_printf(MSG_DEBUG,
+			   "LOGON: auth failure -> DISCONNECTED (from state %d)",
+			   logon->state);
+		if (logon->ctx->logon_disconnect)
+			logon->ctx->logon_disconnect(logon->ctx->ctx);
+		if (logon->ctx->cp_connect_unauthenticated)
+			logon->ctx->cp_connect_unauthenticated(
+				logon->ctx->ctx);
+		logon->state = LOGON_DISCONNECTED;
+	}
+}
+
+
+/**
+ * ieee802_1x_logon_secured - Notify that MACsec key establishment is complete
+ * @logon: State machine pointer.
+ *
+ * When in AUTHENTICATED state, transitions to SECURED and signals CP
+ * to set port connectivity to SECURE. Per IEEE 802.1X-2020 Clause 12.
+ *
+ * @implements #22 REQ-F-LOGON-004: CP connectivity signalling — secure
+ */
+void ieee802_1x_logon_secured(struct ieee802_1x_logon *logon)
+{
+	if (!logon)
+		return;
+
+	/* IEEE 802.1X-2020 Clause 12 — MACsec established */
+	if (logon->state == LOGON_AUTHENTICATED) {
+		wpa_printf(MSG_DEBUG, "LOGON: secured -> SECURED");
+		logon->state = LOGON_SECURED;
+		if (logon->ctx->cp_connect_secure)
+			logon->ctx->cp_connect_secure(logon->ctx->ctx);
+	}
 }
 
 
