@@ -6,7 +6,7 @@ build/
 *.a
 
 # Test binaries
-tests/pae/test_ieee802_1x_logon
+tests/pae/test_ieee802_1x_*
 src/pae/test_ieee802_1x_logon
 
 # Generated config
