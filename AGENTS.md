@@ -7,7 +7,7 @@
 
 ## Project Mission
 
-Extend **wpa_supplicant 2.11** to achieve full compliance with **IEEE Std 802.1X-2020** (Port-Based Network Access Control).
+Extend **wpa_supplicant 2.12** to achieve full compliance with **IEEE Std 802.1X-2020** (Port-Based Network Access Control).
 
 **Hard constraints**:
 - Language: **C only** (no C++)

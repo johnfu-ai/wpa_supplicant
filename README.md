@@ -10,7 +10,8 @@ GitHub: [johnfu-ai/wpa_supplicant](https://github.com/johnfu-ai/wpa_supplicant)
 
 ## Project Status
 
-- Default branch (`main`): research work on `wpa_supplicant-2.11`
+- Default branch (`main`): research work on `wpa_supplicant-2.12` (merged from
+  upstream 2.12; previously 2.11)
 - Purpose: study, prototyping, and security research
 - Production readiness: not guaranteed
 - Intended audience: developers, students, and researchers working on 802.1X,
@@ -20,7 +21,7 @@ GitHub: [johnfu-ai/wpa_supplicant](https://github.com/johnfu-ai/wpa_supplicant)
 
 | Branch | Contents |
 | --- | --- |
-| `main` | Research fork based on wpa_supplicant 2.11 (IEEE 802.1X-2020 experiments) |
+| `main` | Research fork based on wpa_supplicant 2.12 (IEEE 802.1X-2020 experiments) |
 | `w1.fi/wpa_supplicant_2.12` | Official `wpa_supplicant-2.12.tar.gz` snapshot (wpa_supplicant tree only) |
 | `w1.fi/hostap-2_12` | Official hostap Git branch `2_12` (full tree: hostapd + wpa_supplicant + `doc/`) |
 | `w1.fi/hostap-main` | Official hostap Git `main` (`2.13-devel`) |
