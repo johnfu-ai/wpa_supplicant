@@ -21,10 +21,10 @@ Extend **wpa_supplicant 2.12** to achieve full compliance with **IEEE Std 802.1X
 
 ```
 <workspace-root>/
-├── wpa_supplicant-8021X-2020/      # ← YOU ARE HERE
+├── wpa_supplicant/                 # ← YOU ARE HERE (research fork, base 2.12)
 ├── 8021X-2020.md/                  # IEEE 802.1X-2020 standard (Markdown study copy)
 ├── 8021X-2020.YANG/                # IEEE 802.1X-2020 YANG data models (normative)
-└── std_dev_practices-8021X-2020/   # Dev methodology, lifecycle, AI agents
+└── 802.1X_dev_practices/           # Dev methodology, lifecycle, AI agents
     └── AGENTS.md                   # Full project context (read this too)
 ```
 
@@ -95,7 +95,7 @@ cd tests/pae && make test
 
 ```bash
 # Configure build
-cd wpa_supplicant-8021X-2020/wpa_supplicant
+cd wpa_supplicant/wpa_supplicant
 cp defconfig .config
 # Edit .config — see relevant flags below
 make -j$(nproc)
@@ -111,8 +111,8 @@ sudo ./wpa_supplicant -D nl80211 -i wlan0 -c wpa_supplicant.conf -d
 
 ```makefile
 CONFIG_IEEE8021X_EAPOL=y    # Core 802.1X supplicant (Clause 8)
-CONFIG_MACSEC=y              # MACsec / IEEE 802.1AE
-CONFIG_MOKO=y                # MKA (Clause 9)
+CONFIG_MACSEC=y              # MACsec / IEEE 802.1AE + MKA/KaY (Clause 9)
+CONFIG_IEEE8021X_2020_LOGON=y # Fork: Logon Process SM (Clause 12)
 CONFIG_EAP_TLS=y             # EAP-TLS
 CONFIG_EAP_PEAP=y            # EAP-PEAP
 CONFIG_EAP_TTLS=y            # EAP-TTLS
@@ -304,7 +304,7 @@ See: IEEE 802.1X-2020, Clause 12
 
 ## Traceability
 
-Code must reference GitHub Issues from `std_dev_practices-8021X-2020` repo:
+Code must reference GitHub Issues from the `802.1X_dev_practices` repo:
 
 ```c
 /*
