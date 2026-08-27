@@ -1,17 +1,44 @@
-# WPA Supplicant 2.11 - Research Fork (IEEE 802.1X-2020 Study)
+# WPA Supplicant — Research Fork (IEEE 802.1X-2020 Study)
 
 This repository is a research-oriented fork/minor adaptation of the upstream
 `wpa_supplicant` project from [w1.fi](https://w1.fi/wpa_supplicant/). The goal
 is to support personal study and experimental development around modern
 enterprise authentication, especially concepts related to IEEE 802.1X-2020.
 
+GitHub: [johnfu-ai/wpa_supplicant](https://github.com/johnfu-ai/wpa_supplicant)
+(formerly `wpa_supplicant-8021X-2020`).
+
 ## Project Status
 
-- Base code: `wpa_supplicant-2.11`
+- Default branch (`main`): research work on `wpa_supplicant-2.11`
 - Purpose: study, prototyping, and security research
 - Production readiness: not guaranteed
 - Intended audience: developers, students, and researchers working on 802.1X,
   EAP, and WLAN security internals
+
+## Branches
+
+| Branch | Contents |
+| --- | --- |
+| `main` | Research fork based on wpa_supplicant 2.11 (IEEE 802.1X-2020 experiments) |
+| `w1.fi/wpa_supplicant_2.12` | Official `wpa_supplicant-2.12.tar.gz` snapshot (wpa_supplicant tree only) |
+| `w1.fi/hostap-2_12` | Official hostap Git branch `2_12` (full tree: hostapd + wpa_supplicant + `doc/`) |
+| `w1.fi/hostap-main` | Official hostap Git `main` (`2.13-devel`) |
+| `w1.fi/hostap-pending` | Official hostap Git `pending` |
+
+Canonical upstream Git (not GitHub):
+
+```bash
+git clone https://git.w1.fi/hostap.git
+```
+
+Web UI: [git.w1.fi/cgit/hostap](https://git.w1.fi/cgit/hostap/)
+
+Developer documentation is generated with Doxygen from `doc/` in the full
+hostap tree (`doc/mainpage.doxygen`). The published HTML at
+[w1.fi/wpa_supplicant/devel](https://w1.fi/wpa_supplicant/devel/index.html)
+is an older generated snapshot (labeled 2.5). Rebuild with `cd doc && make html`
+from a full hostap checkout.
 
 ## About wpa_supplicant
 
@@ -111,8 +138,10 @@ Suggested phased plan for further development:
 ## Repository Notes
 
 - Main source area: `wpa_supplicant/`
+- Shared protocol/crypto/driver code: `src/`
 - Build configuration template: `wpa_supplicant/defconfig`
 - Runtime configuration sample: `wpa_supplicant/wpa_supplicant.conf`
+- PAE unit tests: `tests/pae/` (`cd tests/pae && make test`)
 
 ## License and Attribution
 
@@ -120,8 +149,10 @@ This codebase is based on `wpa_supplicant`, which is distributed under the BSD
 license (3-clause style, no advertising clause). Please retain original
 copyright notices and follow upstream contribution/license requirements.
 
-Upstream project page:
-- https://w1.fi/wpa_supplicant/
+Upstream:
+- Project page: https://w1.fi/wpa_supplicant/
+- Git: https://git.w1.fi/hostap.git
+- Refs: https://git.w1.fi/cgit/hostap/refs/
 
 ## Security, Compliance, and Ethics
 
