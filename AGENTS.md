@@ -33,7 +33,7 @@ Extend **wpa_supplicant 2.12** to achieve full compliance with **IEEE Std 802.1X
 ## Codebase Map
 
 ```
-wpa_supplicant-8021X-2020/
+wpa_supplicant/
 ├── wpa_supplicant/               # Application layer
 │   ├── wpa_supplicant.c          # Main supplicant logic, init, event loop
 │   ├── wpa_supplicant_i.h        # Internal supplicant context (struct wpa_supplicant)
@@ -57,8 +57,9 @@ wpa_supplicant-8021X-2020/
     │   ├── ieee802_1x_cp.c/h     # Controlled Port state machine
     │   ├── ieee802_1x_key.c/h    # Key derivation
     │   ├── ieee802_1x_secy_ops.c/h  # SecY hardware abstraction
-    │   ├── ieee802_1x_logon.c    # Logon Process SM — Clause 12 (Wave 1 in progress)
-    │   └── ieee802_1x_logon.h    # Logon Process public API + ieee802_1x_logon_ctx DI struct
+    │   ├── ieee802_1x_logon.c    # Logon Process SM — Clause 12
+    │   ├── ieee802_1x_logon.h    # Logon Process public API + ieee802_1x_logon_ctx DI struct
+    │   └── ieee802_1x_ancp.c/h   # ANCP — Clause 10/11.12 announced connectivity
     ├── eapol_auth/               # Authenticator EAPOL state machine
     ├── crypto/                   # Cryptographic primitives
     ├── tls/                      # TLS (internal or OpenSSL wrapper)
@@ -142,20 +143,25 @@ endif
 
 | State Machine | Standard Reference | Current File | Status |
 |---|---|---|---|
-| Supplicant PAE | Clause 8.3 | `eapol_supp/eapol_supp_sm.c` | Partial (2010 base) |
+| Supplicant PAE | Clause 8.3 | `eapol_supp/eapol_supp_sm.c` | Partial (2010 base) + PACP logon_if callbacks |
 | Authenticator PAE | Clause 8.4 | `eapol_auth/` | Partial |
-| MKA (KaY) | Clause 9 | `pae/ieee802_1x_kay.c` | Partial (2010 base) |
-| Controlled Port (CP) | Clause 10 | `pae/ieee802_1x_cp.c` | Partial |
-| Logon Process | Clause 12 | `pae/ieee802_1x_logon.c` | **Wave 1 in progress** — init/deinit done (5 tests green) |
-| ANCP | Clause 12 | **Not implemented** | MISSING — Wave 3 |
+| MKA (KaY) | Clause 9 | `pae/ieee802_1x_kay.c` | 2010 base + 2020 extensions (suspend/resume, group CAK) |
+| Controlled Port (CP) | Clause 10/12.2 | `pae/ieee802_1x_cp.c` | Updated; SECURED transition wired to Logon Process |
+| Logon Process | Clause 12 | `pae/ieee802_1x_logon.c` | Implemented (24 unit tests) |
+| NID management | Clause 12.5 | `pae/ieee802_1x_logon.c` | Implemented (20 unit tests) |
+| ANCP | Clause 10/11.12 | `pae/ieee802_1x_ancp.c` | Implemented (17 unit tests) |
 
-### Critical Missing Features (802.1X-2020 gaps)
+### Remaining 802.1X-2020 Work
 
-1. **Logon Process (Clause 12)** — `pae/ieee802_1x_logon.c` started; init/deinit complete, sm_step/state transitions next
-2. **NID Group management (Clause 12.5)** — per-NID configuration — Wave 3
-3. **ANCP (Announced Network Connectivity Protocol)** — L2 network announcement — Wave 3
-4. **EAP-TEAP completion** — required method per 802.1X-2020 — Wave 2
-5. **MKA 2020 updates** — review against Clause 9 changes from 2010→2020 — Wave 1
+Waves 1-3 are implemented with unit evidence (90/90 tests, see
+`802.1X_dev_practices` Phase 05/07). Still open:
+
+1. **End-to-end functional verification** — eapol_test/RADIUS runs against a
+   real authenticator (see Phase 07 outstanding items)
+2. **Authenticator PAE (Clause 8.4) 2020 alignment** — supplicant side prioritized
+3. **Formal coverage measurement** — no % tool configured yet
+4. **Upstream sync follow-ups** — 2.12's EAP-over-auth-frame infra not yet
+   integrated with the 2020 Logon flow
 
 ### YANG Data Model Reference
 
