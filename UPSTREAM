@@ -1,0 +1,4 @@
+source: https://w1.fi/releases/wpa_supplicant-2.12.tar.gz
+project: https://w1.fi/wpa_supplicant/
+sha256: 08e23937e16d0155e55cab2b51f51fbe10d80a1aa91c4e15442645059b737ef6
+released: 2026-08-07
