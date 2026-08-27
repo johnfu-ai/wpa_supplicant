@@ -50,6 +50,13 @@ CFLAGS += $(EXTRA_CFLAGS)
 CFLAGS += -I$(abspath ../src)
 CFLAGS += -I$(abspath ../src/utils)
 
+# Pin C17: GCC 15+ defaults to gnu23, where glibc >= 2.42 declares
+# strchr() and friends as const-propagating generic overloads
+# (__GLIBC_USE(ISOC23)); assigning their result to 'char *' then warns
+# and fails under the -Werror used for CONFIG_EAPOL_TEST builds.
+# The codebase is C11-era and fully compatible with C17.
+CFLAGS += -std=gnu17
+
 ifndef CONFIG_NO_GITVER
 # Add VERSION_STR postfix for builds from a git repository
 ifeq ($(wildcard ../.git),../.git)
