@@ -21,7 +21,7 @@ Extend **wpa_supplicant 2.11** to achieve full compliance with **IEEE Std 802.1X
 
 ```
 <workspace-root>/
-├── wpa_supplicant-8021X-2020/      # ← YOU ARE HERE
+├── wpa_supplicant/                 # ← YOU ARE HERE (git repository)
 ├── 8021X-2020.md/                  # IEEE 802.1X-2020 standard (Markdown study copy)
 ├── 8021X-2020.YANG/                # IEEE 802.1X-2020 YANG data models (normative)
 └── std_dev_practices-8021X-2020/   # Dev methodology, lifecycle, AI agents
@@ -33,7 +33,7 @@ Extend **wpa_supplicant 2.11** to achieve full compliance with **IEEE Std 802.1X
 ## Codebase Map
 
 ```
-wpa_supplicant-8021X-2020/
+wpa_supplicant/                   # git repository root
 ├── wpa_supplicant/               # Application layer
 │   ├── wpa_supplicant.c          # Main supplicant logic, init, event loop
 │   ├── wpa_supplicant_i.h        # Internal supplicant context (struct wpa_supplicant)
@@ -95,7 +95,7 @@ cd tests/pae && make test
 
 ```bash
 # Configure build
-cd wpa_supplicant-8021X-2020/wpa_supplicant
+cd wpa_supplicant/wpa_supplicant
 cp defconfig .config
 # Edit .config — see relevant flags below
 make -j$(nproc)

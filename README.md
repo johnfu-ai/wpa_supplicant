@@ -1,9 +1,12 @@
-# WPA Supplicant 2.11 - Research Fork (IEEE 802.1X-2020 Study)
+# wpa_supplicant
 
 This repository is a research-oriented fork/minor adaptation of the upstream
 `wpa_supplicant` project from [w1.fi](https://w1.fi/wpa_supplicant/). The goal
 is to support personal study and experimental development around modern
 enterprise authentication, especially concepts related to IEEE 802.1X-2020.
+
+GitHub project: [johnfu-ai/wpa_supplicant](https://github.com/johnfu-ai/wpa_supplicant)
+(formerly `wpa_supplicant-8021X-2020`).
 
 ## Project Status
 
